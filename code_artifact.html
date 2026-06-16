@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>晴空微風農場 - 療癒系模擬經營</title>
+    <!-- 引入 Tailwind CSS 提供極佳外觀設計 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 FontAwesome 圖標 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google 字型 Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        /* 訂製流暢的生長動畫與震動效果 */
+        @keyframes pulse-slow {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .animate-pulse-slow {
+            animation: pulse-slow 3s infinite ease-in-out;
+        }
+        @keyframes bounce-gentle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+        .animate-bounce-gentle {
+            animation: bounce-gentle 2s infinite ease-in-out;
+        }
+        /* 隱藏滾動條但保持滾動功能 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-green-50 via-emerald-100 to-amber-50 min-h-screen text-slate-800 pb-12 overflow-x-hidden">
+
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-30 border-b border-green-100 shadow-sm transition-all">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+            <!-- 遊戲 Logo & 標題 -->
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-tr from-emerald-500 to-green-400 p-2.5 rounded-2xl shadow-md text-white animate-bounce-gentle">
+                    <i class="fa-solid fa-wheat-awn text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-emerald-700 to-green-600 bg-clip-text text-transparent">晴空微風農場</h1>
+                    <p class="text-xs text-slate-500 font-medium">Sunny Breeze Farm v1.2</p>
+                </div>
+            </div>
+
+            <!-- 天氣、時間與等級 -->
+            <div class="flex items-center gap-3 bg-slate-50 px-4 py-1.5 rounded-full border border-slate-100 shadow-inner">
+                <!-- 天氣狀態 -->
+                <div id="weather-badge" class="flex items-center gap-1.5 text-sm font-semibold transition-all duration-500">
+                    <span id="weather-icon">☀️</span>
+                    <span id="weather-text" class="text-amber-600">晴空萬里</span>
+                </div>
+                <div class="h-4 w-px bg-slate-200"></div>
+                <!-- 遊戲天數 -->
+                <div class="text-xs font-bold text-slate-600">
+                    第 <span id="game-day" class="text-emerald-600 font-extrabold text-sm">1</span> 天
+                </div>
+            </div>
+
+            <!-- 金幣與經驗值 -->
+            <div class="flex items-center gap-4">
+                <!-- 經驗等級 -->
+                <div class="flex items-center gap-2">
+                    <div class="flex flex-col items-end">
+                        <span class="text-xs text-slate-400 font-bold">LV.<span id="farm-level">1</span></span>
+                        <!-- 經驗條外框 -->
+                        <div class="w-24 h-2 bg-slate-200 rounded-full overflow-hidden mt-0.5 shadow-inner">
+                            <div id="xp-progress" class="bg-emerald-500 h-full w-[10%] transition-all duration-300"></div>
+                        </div>
+                    </div>
+                    <span class="text-xs text-emerald-600 font-black" id="xp-text">0/100</span>
+                </div>
+
+                <!-- 金幣數量 -->
+                <div class="bg-amber-100 border border-amber-200 rounded-2xl px-4 py-2 flex items-center gap-2 shadow-sm text-amber-800 font-bold animate-pulse-slow">
+                    <span class="text-lg">🪙</span>
+                    <span id="player-coins" class="text-lg font-extrabold tracking-wide">150</span>
+                </div>
+
+                <!-- 靜音與重設按鈕 -->
+                <div class="flex gap-1">
+                    <button id="btn-sound" onclick="toggleMute()" class="p-2.5 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-600 rounded-xl transition shadow-sm" title="切換音效">
+                        <i id="sound-icon" class="fa-solid fa-volume-high"></i>
+                    </button>
+                    <button onclick="confirmReset()" class="p-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 active:scale-95 rounded-xl transition shadow-sm" title="重設農場">
+                        <i class="fa-solid fa-arrow-rotate-left"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- 左側工具欄與商店區 (占 4 欄) -->
+        <div class="lg:col-span-4 space-y-6">
+            
+            <!-- 播種種子選擇 -->
+            <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <span class="text-green-500">🌱</span> 選擇種植作物
+                    </h2>
+                    <span class="text-xs text-slate-400 font-medium">點選後點擊農地播種</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3" id="seed-shop-container">
+                    <!-- 作物種子按鈕將由 JS 動態生成 -->
+                </div>
+            </div>
+
+            <!-- 工具箱選擇 (澆水、施肥、除草) -->
+            <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+                <h2 class="text-base font-bold text-slate-800 flex items-center gap-2 mb-4">
+                    <span class="text-blue-500">🛠️</span> 農作與維護工具
+                </h2>
+                <div class="grid grid-cols-3 gap-2">
+                    <!-- 手動收割 -->
+                    <button onclick="selectTool('hand')" id="tool-hand" class="tool-btn flex flex-col items-center justify-center p-3 rounded-2xl border-2 border-slate-100 hover:border-emerald-200 transition bg-slate-50 text-slate-700 active:scale-95">
+                        <span class="text-xl mb-1">🧤</span>
+                        <span class="text-xs font-bold">手動收割</span>
+                    </button>
+                    <!-- 澆水壺 -->
+                    <button onclick="selectTool('water')" id="tool-water" class="tool-btn flex flex-col items-center justify-center p-3 rounded-2xl border-2 border-slate-100 hover:border-blue-200 transition bg-slate-50 text-slate-700 active:scale-95">
+                        <span class="text-xl mb-1">💧</span>
+                        <span class="text-xs font-bold">澆水器</span>
+                    </button>
+                    <!-- 肥料 -->
+                    <button onclick="selectTool('fertilizer')" id="tool-fertilizer" class="tool-btn flex flex-col items-center justify-center p-3 rounded-2xl border-2 border-slate-100 hover:border-amber-200 transition bg-slate-50 text-slate-700 active:scale-95 relative">
+                        <span class="text-xl mb-1">🧪</span>
+                        <span class="text-xs font-bold">超級肥料</span>
+                        <span class="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold shadow" id="fertilizer-cost">$15</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 牧場動物區 -->
+            <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <span class="text-amber-500">🐔</span> 歡樂動物牧場
+                    </h2>
+                    <span class="text-xs text-slate-400 font-medium">餵食作物收穫副產品</span>
+                </div>
+                
+                <div class="space-y-3">
+                    <!-- 母雞 -->
+                    <div class="flex items-center justify-between p-3 bg-amber-50/50 rounded-2xl border border-amber-100">
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl animate-bounce-gentle">🐔</span>
+                            <div>
+                                font-bold <h3 class="text-sm font-bold text-amber-900">快樂母雞 (<span id="chicken-count">0</span>)</h3>
+                                <p class="text-xs text-amber-700/80 mt-0.5">需餵食: 🌾 小麥</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-1.5">
+                            <button onclick="feedAnimal('chicken')" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-sm transition active:scale-95">餵食</button>
+                            <button onclick="buyAnimal('chicken')" class="px-3 py-1.5 bg-white border border-amber-300 text-amber-700 hover:bg-amber-50 text-xs font-bold rounded-xl transition active:scale-95">買 ($200)</button>
+                        </div>
+                    </div>
+
+                    <!-- 乳牛 -->
+                    <div class="flex items-center justify-between p-3 bg-indigo-50/50 rounded-2xl border border-indigo-100">
+                        <div class="flex items-center gap-3">
+                            <span class="text-3xl">🐄</span>
+                            <div>
+                                <h3 class="text-sm font-bold text-indigo-900">豐產乳牛 (<span id="cow-count">0</span>)</h3>
+                                <p class="text-xs text-indigo-700/80 mt-0.5">需餵食: 🥕 胡蘿蔔</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-1.5">
+                            <button onclick="feedAnimal('cow')" class="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold rounded-xl shadow-sm transition active:scale-95">餵食</button>
+                            <button onclick="buyAnimal('cow')" class="px-3 py-1.5 bg-white border border-indigo-300 text-indigo-700 hover:bg-indigo-50 text-xs font-bold rounded-xl transition active:scale-95">買 ($500)</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-5 space-y-6">
+            
+            <!-- 農場主園區 -->
+            <div class="bg-gradient-to-b from-amber-800 to-amber-900 rounded-[2rem] p-5 shadow-lg border-4 border-amber-950 relative">
+                <!-- 頂部裝飾、稻草人與自動灑水器提示 -->
+                <div class="flex justify-between items-center mb-4 text-white">
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">🏡</span>
+                        <span class="font-extrabold text-sm tracking-wide text-amber-100">我的主要耕作區</span>
+                    </div>
+                    <!-- 基礎升級狀態 indicators -->
+                    <div class="flex gap-2">
+                        <span id-active="scarecrow" class="opacity-30 bg-amber-950/50 px-2 py-0.5 rounded-lg text-xs font-bold border border-amber-700 text-amber-200 transition-all flex items-center gap-1">
+                            <i class="fa-solid fa-person-harassing"></i> 稻草人
+                        </span>
+                        <span id-active="sprinkler" class="opacity-30 bg-amber-950/50 px-2 py-0.5 rounded-lg text-xs font-bold border border-amber-700 text-cyan-200 transition-all flex items-center gap-1">
+                            <i class="fa-solid fa-faucet-drip"></i> 灑水器
+                        </span>
+                    </div>
+                </div>
+
+                <!-- 耕地 Grid 容器 -->
+                <div class="grid grid-cols-3 gap-3 md:gap-4 aspect-square max-w-[450px] mx-auto" id="farm-plots-grid">
+                    <!-- 9/12塊農地動態生成 -->
+                </div>
+
+                <!-- 底部提示 -->
+                <div class="text-center text-amber-200 text-[10px] mt-4 font-semibold opacity-80">
+                    💡 提示：雨天時作物水分會自動補滿！記得定時除草和趕走偶爾來搗亂的烏鴉。
+                </div>
+            </div>
+
+            <!-- 倉庫與收穫品展示 -->
+            <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <span class="text-yellow-500">📦</span> 農場大穀倉 (倉庫)
+                    </h2>
+                    <button onclick="sellAllInventory()" class="text-xs text-emerald-600 font-extrabold hover:underline">
+                        全部售出 💰
+                    </button>
+                </div>
+                <div class="grid grid-cols-3 gap-3" id="inventory-container">
+                    <!-- 由 JS 動態注入庫存項目 -->
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-3 space-y-6">
+            
+            <!-- 村民合約 / 每日任務 -->
+            <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+                <h2 class="text-base font-bold text-slate-800 flex items-center gap-2 mb-3">
+                    <span class="text-rose-500">📜</span> 鄰里村民合約任務
+                </h2>
+                <p class="text-xs text-slate-400 mb-4 font-medium">交付特定農產品來換取高額獎勵！</p>
+                
+                <div class="space-y-3" id="quests-container">
+                    <!-- 任務卡片動態渲染 -->
+                </div>
+            </div>
+
+            <!-- 農作科技升級商店 -->
+            <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+                <h2 class="text-base font-bold text-slate-800 flex items-center gap-2 mb-4">
+                    <span class="text-purple-500">🛒</span> 農場科技升級
+                </h2>
+                <div class="space-y-3">
+                    <!-- 開墾新耕地 -->
+                    <button onclick="buyUpgrade('expand')" id="upgrade-btn-expand" class="w-full p-3 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-2xl flex items-center justify-between text-left transition active:scale-98">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">🪵</span>
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-800">開墾額外耕地</h4>
+                                <p class="text-[10px] text-slate-400 mt-0.5">增加 3 格全新高產土壤</p>
+                            </div>
+                        </div>
+                        <span class="bg-emerald-100 text-emerald-800 font-extrabold text-xs px-2.5 py-1 rounded-full" id="cost-upgrade-expand">$300</span>
+                    </button>
+
+                    <!-- 自動灑水系統 -->
+                    <button onclick="buyUpgrade('sprinkler')" id="upgrade-btn-sprinkler" class="w-full p-3 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-2xl flex items-center justify-between text-left transition active:scale-98">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">🚿</span>
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-800">自動微霧灑水器</h4>
+                                <p class="text-[10px] text-slate-400 mt-0.5">全農地永久每秒自動潤水</p>
+                            </div>
+                        </div>
+                        <span class="bg-emerald-100 text-emerald-800 font-extrabold text-xs px-2.5 py-1 rounded-full" id="cost-upgrade-sprinkler">$450</span>
+                    </button>
+
+                    <!-- 稻草人 -->
+                    <button onclick="buyUpgrade('scarecrow')" id="upgrade-btn-scarecrow" class="w-full p-3 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-2xl flex items-center justify-between text-left transition active:scale-98">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">👤</span>
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-800">防風高大稻草人</h4>
+                                <p class="text-[10px] text-slate-400 mt-0.5">永久驅趕愛偷作物的烏鴉</p>
+                            </div>
+                        </div>
+                        <span class="bg-emerald-100 text-emerald-800 font-extrabold text-xs px-2.5 py-1 rounded-full" id="cost-upgrade-scarecrow">$250</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 音效版權與提示 -->
+            <div class="text-center text-slate-400 text-[10px] font-medium py-2">
+                &copy; 2026 晴空微風農場. Powered by HTML5 Web Audio API.
+            </div>
+        </div>
+    </main>
+
+    <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 max-w-sm"></div>
+
+    <script>
+        const AudioEngine = {
+            ctx: null,
+            isMuted: false,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            play(type) {
+                if (this.isMuted) return;
+                this.init();
+                
+                const ctx = this.ctx;
+                const now = ctx.currentTime;
+                
+                // 簡易音效合成器邏輯
+                if (type === 'plant') {
+                    // 柔和降音 (模擬種植泥土聲)
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.exponentialRampToValueAtTime(60, now + 0.15);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } 
+                else if (type === 'water') {
+                    // 水滴冒泡聲
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                }
+                else if (type === 'harvest') {
+                    // 爽快高音旋律
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now); // C5
+                    osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+                    osc.frequency.setValueAtTime(783.99, now + 0.16); // G5
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                }
+                else if (type === 'sell' || type === 'coin') {
+                    // 金幣叮噹聲
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(987.77, now); // B5
+                    osc.frequency.setValueAtTime(1318.51, now + 0.06); // E6
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                }
+                else if (type === 'upgrade' || type === 'levelUp') {
+                    // 華麗上升和弦
+                    const freqs = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99];
+                    freqs.forEach((freq, idx) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+                        gain.gain.setValueAtTime(0.12, now + idx * 0.05);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.05 + 0.25);
+                        osc.start(now + idx * 0.05);
+                        osc.stop(now + idx * 0.05 + 0.25);
+                    });
+                }
+                else if (type === 'animal') {
+                    // 動物叫聲感模擬 (簡單調頻調幅)
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.linearRampToValueAtTime(140, now + 0.2);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                }
+            }
+        };
+
+        const CROPS_CONFIG = {
+            wheat: { id: 'wheat', name: '小麥', emoji: '🌾', cost: 10, sellPrice: 20, time: 6, xp: 5 },
+            carrot: { id: 'carrot', name: '胡蘿蔔', emoji: '🥕', cost: 25, sellPrice: 55, time: 15, xp: 12 },
+            strawberry: { id: 'strawberry', name: '草莓', emoji: '🍓', cost: 60, sellPrice: 140, time: 30, xp: 25 },
+            pumpkin: { id: 'pumpkin', name: '大南瓜', emoji: '🎃', cost: 150, sellPrice: 380, time: 60, xp: 60 }
+        };
+
+        const ANIMAL_CONFIG = {
+            chicken: { id: 'chicken', name: '母雞', emoji: '🐔', cost: 200, food: 'wheat', product: 'egg', pEmoji: '🥚', pName: '雞蛋', pPrice: 50, xp: 15 },
+            cow: { id: 'cow', name: '乳牛', emoji: '🐄', cost: 500, food: 'carrot', product: 'milk', pEmoji: '🥛', pName: '新鮮牛奶', pPrice: 120, xp: 35 }
+        };
+
+        // 升級項目
+        const UPGRADE_CONFIG = {
+            expand: { id: 'expand', cost: 300 },
+            sprinkler: { id: 'sprinkler', cost: 450 },
+            scarecrow: { id: 'scarecrow', cost: 250 }
+        };
+
+        let state = {
+            coins: 150,
+            xp: 0,
+            level: 1,
+            selectedSeed: 'wheat',
+            selectedTool: 'hand', // hand, water, fertilizer
+            activeUpgrades: {
+                expand: false,     // 開墾了額外的 3 塊土
+                sprinkler: false,  // 自動灑水器
+                scarecrow: false   // 稻草人
+            },
+            animals: {
+                chicken: 0,
+                cow: 0
+            },
+            inventory: {
+                wheat: 0,
+                carrot: 0,
+                strawberry: 0,
+                pumpkin: 0,
+                egg: 0,
+                milk: 0
+            },
+            plots: [], // 耕作土地陣列
+            quests: [],
+            day: 1,
+            weather: 'sunny', // sunny, rainy, drought
+            weatherTicks: 0
+        };
+
+        // 預設耕土狀態配置 (9格或12格)
+        function createDefaultPlots(count) {
+            let temp = [];
+            for(let i=0; i<count; i++) {
+                temp.push({
+                    id: i,
+                    crop: null,       // 作物種類 id
+                    growth: 0,        // 0 to 100
+                    water: 0,         // 土壤濕度度數 (0 to 100)
+                    crowPresent: false, // 烏鴉是否存在
+                    fertilized: false  // 是否被施肥過
+                });
+            }
+            return temp;
+        }
+
+        function saveGame() {
+            try {
+                localStorage.setItem('sunny_breeze_farm_save', JSON.stringify(state));
+            } catch(e) {
+                console.error("無法將遊戲儲存至本地瀏覽器: ", e);
+            }
+        }
+
+        function loadGame() {
+            const saved = localStorage.getItem('sunny_breeze_farm_save');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    // 深層對應與合併，確保代碼更新時不崩潰
+                    state = { ...state, ...parsed };
+                    if (parsed.activeUpgrades) state.activeUpgrades = { ...state.activeUpgrades, ...parsed.activeUpgrades };
+                    if (parsed.animals) state.animals = { ...state.animals, ...parsed.animals };
+                    if (parsed.inventory) state.inventory = { ...state.inventory, ...parsed.inventory };
+                    
+                    // 重新加載或生成耕地
+                    if (parsed.plots && parsed.plots.length > 0) {
+                        state.plots = parsed.plots;
+                    } else {
+                        state.plots = createDefaultPlots(state.activeUpgrades.expand ? 12 : 9);
+                    }
+                } catch(e) {
+                    console.warn("存檔毀損，建立新農場：", e);
+                    resetToDefault();
+                }
+            } else {
+                resetToDefault();
+            }
+        }
+
+        function resetToDefault() {
+            state.coins = 150;
+            state.xp = 0;
+            state.level = 1;
+            state.selectedSeed = 'wheat';
+            state.selectedTool = 'hand';
+            state.activeUpgrades = { expand: false, sprinkler: false, scarecrow: false };
+            state.animals = { chicken: 0, cow: 0 };
+            state.inventory = { wheat: 0, carrot: 0, strawberry: 0, pumpkin: 0, egg: 0, milk: 0 };
+            state.plots = createDefaultPlots(9);
+            state.quests = generateQuests();
+            state.day = 1;
+            state.weather = 'sunny';
+            state.weatherTicks = 0;
+            saveGame();
+        }
+
+        function generateQuests() {
+            const pool = [
+                { id: 1, text: "村長家的小麥粥", req: { wheat: 5 }, reward: 120, xp: 30 },
+                { id: 2, text: "愛麗絲的胡蘿蔔沙拉", req: { carrot: 3 }, reward: 200, xp: 45 },
+                { id: 3, text: "烘焙坊的草莓蛋糕大單", req: { strawberry: 2, egg: 2 }, reward: 420, xp: 75 },
+                { id: 4, text: "萬聖節雕刻大賽委託", req: { pumpkin: 1 }, reward: 450, xp: 80 },
+                { id: 5, text: "牛奶麥片雙拼合約", req: { wheat: 8, milk: 2 }, reward: 480, xp: 90 },
+                { id: 6, text: "農會大宗雞蛋採購", req: { egg: 6 }, reward: 380, xp: 60 }
+            ];
+            // 隨機抽選 3 個不同的合約
+            const shuffled = [...pool].sort(() => 0.5 - Math.random());
+            return shuffled.slice(0, 3);
+        }
+
+        function createToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const colors = {
+                success: 'bg-white border-l-4 border-emerald-500 text-slate-700 shadow-lg',
+                error: 'bg-rose-500 text-white shadow-rose-200/50 shadow-md',
+                info: 'bg-sky-500 text-white shadow-sky-200/50 shadow-md',
+                warn: 'bg-amber-500 text-white shadow-amber-200/50 shadow-md'
+            };
+
+            const icons = {
+                success: '✅',
+                error: '🚨',
+                info: '💡',
+                warn: '⚠️'
+            };
+
+            toast.className = `${colors[type] || colors.success} p-3.5 rounded-2xl flex items-center gap-3 transition-all duration-300 transform translate-y-2 opacity-0 font-bold text-sm border border-slate-100`;
+            toast.innerHTML = `
+                <span class="text-base">${icons[type] || '✨'}</span>
+                <div>${message}</div>
+            `;
+            
+            container.appendChild(toast);
+            
+            // 進場動畫
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            // 3秒後消除
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-[-10px]');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function renderAll() {
+            // 1. 狀態欄資訊
+            document.getElementById('farm-level').innerText = state.level;
+            document.getElementById('player-coins').innerText = state.coins;
+            document.getElementById('game-day').innerText = state.day;
+
+            // 經驗值
+            const nextLevelXp = state.level * 120;
+            const xpPercentage = Math.min((state.xp / nextLevelXp) * 100, 100);
+            document.getElementById('xp-progress').style.width = `${xpPercentage}%`;
+            document.getElementById('xp-text').innerText = `${state.xp}/${nextLevelXp}`;
+
+            // 2. 渲染種子按鈕
+            const seedContainer = document.getElementById('seed-shop-container');
+            seedContainer.innerHTML = '';
+            Object.values(CROPS_CONFIG).forEach(crop => {
+                const isSelected = state.selectedSeed === crop.id;
+                const seedBtn = document.createElement('button');
+                seedBtn.className = `p-3 rounded-2xl border-2 flex flex-col items-center justify-center transition active:scale-95 ${
+                    isSelected 
+                    ? 'border-emerald-500 bg-emerald-50/50 text-emerald-800 font-extrabold shadow-sm' 
+                    : 'border-slate-100 bg-slate-50 text-slate-600 hover:border-slate-200'
+                }`;
+                seedBtn.onclick = () => selectSeed(crop.id);
+                seedBtn.innerHTML = `
+                    <span class="text-2xl mb-1">${crop.emoji}</span>
+                    <span class="text-xs font-extrabold">${crop.name}</span>
+                    <span class="text-[10px] text-slate-400 mt-0.5">成本 $${crop.cost}</span>
+                `;
+                seedContainer.appendChild(seedBtn);
+            });
+
+            // 3. 更新農具按鈕選中樣式
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                const toolId = btn.id.split('-')[1];
+                if (state.selectedTool === toolId) {
+                    btn.classList.add('border-emerald-500', 'bg-emerald-50/50', 'text-emerald-800', 'font-extrabold');
+                } else {
+                    btn.classList.remove('border-emerald-500', 'bg-emerald-50/50', 'text-emerald-800', 'font-extrabold');
+                }
+            });
+
+            // 4. 動物數量
+            document.getElementById('chicken-count').innerText = state.animals.chicken;
+            document.getElementById('cow-count').innerText = state.animals.cow;
+
+            // 5. 渲染農地網格
+            const plotsGrid = document.getElementById('farm-plots-grid');
+            
+            // 調整 grid col 數，如果是12個格，則保持適當大小
+            if (state.activeUpgrades.expand) {
+                plotsGrid.classList.remove('grid-cols-3');
+                plotsGrid.classList.add('grid-cols-4');
+            } else {
+                plotsGrid.classList.remove('grid-cols-4');
+                plotsGrid.classList.add('grid-cols-3');
+            }
+
+            plotsGrid.innerHTML = '';
+            state.plots.forEach(plot => {
+                const plotEl = document.createElement('div');
+                plotEl.className = `relative rounded-2xl md:rounded-3xl border-2 cursor-pointer transition-all flex flex-col justify-between items-center p-2 text-center select-none shadow aspect-square overflow-hidden `;
+                
+                // 決定土壤基本色調（濕潤與否、是否被施肥、被烏鴉佔領）
+                let borderCol = 'border-amber-950/60';
+                let bgCol = 'bg-amber-900'; // 乾燥土地
+                
+                if (plot.water > 0) {
+                    bgCol = 'bg-amber-950'; // 濕潤土地
+                    borderCol = 'border-blue-700/60';
+                }
+                if (plot.fertilized) {
+                    borderCol = 'border-purple-600/60';
+                }
+
+                plotEl.className += `${bgCol} ${borderCol}`;
+
+                // 渲染內容
+                let contentHTML = '';
+
+                if (plot.crowPresent) {
+                    // 烏鴉搶食狀態
+                    contentHTML = `
+                        <div class="absolute inset-0 bg-black/40 flex flex-col justify-center items-center">
+                            <span class="text-3xl animate-bounce-gentle">🐦‍⬛</span>
+                            <span class="text-[10px] bg-red-600 text-white font-bold px-1.5 py-0.5 rounded-full mt-1 animate-pulse">驅趕!</span>
+                        </div>
+                    `;
+                } else if (plot.crop === null) {
+                    // 空地
+                    contentHTML = `
+                        <div class="my-auto flex flex-col items-center">
+                            <span class="text-xl md:text-2xl text-amber-700/60 font-semibold opacity-40">🟫</span>
+                            <span class="text-[10px] text-amber-200/50 font-bold mt-1">空閒</span>
+                        </div>
+                    `;
+                } else {
+                    // 種植中
+                    const config = CROPS_CONFIG[plot.crop];
+                    const percent = Math.floor(plot.growth);
+                    
+                    if (percent >= 100) {
+                        // 成熟可收穫
+                        contentHTML = `
+                            <div class="my-auto flex flex-col items-center animate-bounce-gentle">
+                                <span class="text-3xl md:text-4xl">${config.emoji}</span>
+                                <span class="text-[10px] bg-amber-400 text-amber-950 font-extrabold px-1.5 py-0.5 rounded-full mt-1.5 shadow-sm">可收割</span>
+                            </div>
+                        `;
+                    } else {
+                        // 生長中階段 (幼苗 -> 成長 -> 幾乎成熟)
+                        let plantEmoji = '🌱'; // 剛種下
+                        if (percent > 40) plantEmoji = '🌿';
+                        if (percent > 75) plantEmoji = '🪴';
+
+                        contentHTML = `
+                            <div class="my-auto flex flex-col items-center">
+                                <span class="text-2xl md:text-3xl relative">
+                                    ${plantEmoji}
+                                    <span class="absolute -top-1 -right-2 text-[10px]">${config.emoji}</span>
+                                </span>
+                                <!-- 生長進度條 -->
+                                <div class="w-14 h-1.5 bg-black/40 rounded-full overflow-hidden mt-2 border border-amber-950">
+                                    <div class="bg-green-400 h-full transition-all duration-300" style="width: ${percent}%"></div>
+                                </div>
+                                <span class="text-[9px] text-amber-100 font-semibold mt-1">${percent}%</span>
+                            </div>
+                        `;
+                    }
+                }
+
+                // 土地濕度小圖標
+                const waterIndicator = plot.water > 0 
+                    ? `<span class="absolute top-1 left-1 text-xs" title="土壤已濕潤">💧</span>` 
+                    : `<span class="absolute top-1 left-1 text-xs opacity-20" title="乾燥">🏜️</span>`;
+
+                // 肥料指示
+                const fertIndicator = plot.fertilized 
+                    ? `<span class="absolute top-1 right-1 text-[10px]" title="已施肥">✨</span>` 
+                    : ``;
+
+                plotEl.innerHTML = `
+                    ${waterIndicator}
+                    ${fertIndicator}
+                    ${contentHTML}
+                `;
+
+                // 點擊事件
+                plotEl.onclick = () => handlePlotInteraction(plot.id);
+                plotsGrid.appendChild(plotEl);
+            });
+
+            // 6. 穀倉庫存
+            const invContainer = document.getElementById('inventory-container');
+            invContainer.innerHTML = '';
+            
+            // 合併作物配置與動物產出資訊便於顯示
+            const showItems = [
+                { id: 'wheat', name: '小麥', emoji: '🌾', price: CROPS_CONFIG.wheat.sellPrice },
+                { id: 'carrot', name: '胡蘿蔔', emoji: '🥕', price: CROPS_CONFIG.carrot.sellPrice },
+                { id: 'strawberry', name: '草莓', emoji: '🍓', price: CROPS_CONFIG.strawberry.sellPrice },
+                { id: 'pumpkin', name: '大南瓜', emoji: '🎃', price: CROPS_CONFIG.pumpkin.sellPrice },
+                { id: 'egg', name: '雞蛋', emoji: '🥚', price: ANIMAL_CONFIG.chicken.pPrice },
+                { id: 'milk', name: '牛奶', emoji: '🥛', price: ANIMAL_CONFIG.cow.pPrice }
+            ];
+
+            showItems.forEach(item => {
+                const count = state.inventory[item.id] || 0;
+                const itemEl = document.createElement('div');
+                itemEl.className = `p-2.5 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center justify-between shadow-sm relative ${count > 0 ? 'bg-amber-50/20 border-amber-100' : ''}`;
+                
+                // 單個出售按鈕
+                const sellBtn = count > 0 
+                    ? `<button onclick="sellSingleItem('${item.id}', event)" class="mt-1.5 w-full py-1 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-extrabold rounded-lg shadow-sm transition active:scale-95 flex items-center justify-center gap-0.5">
+                         售 $${item.price}
+                       </button>`
+                    : `<div class="mt-1.5 w-full py-1 text-center text-[10px] text-slate-300 bg-slate-100/50 rounded-lg">缺貨</div>`;
+
+                itemEl.innerHTML = `
+                    <span class="text-2xl">${item.emoji}</span>
+                    <span class="text-xs font-bold text-slate-700 mt-1">${item.name}</span>
+                    <span class="absolute top-1 right-1 bg-slate-200 text-slate-700 text-[10px] px-1.5 py-0.5 rounded-full font-black scale-90">${count}</span>
+                    ${sellBtn}
+                `;
+                invContainer.appendChild(itemEl);
+            });
+
+            // 7. 渲染合約任務
+            const questsContainer = document.getElementById('quests-container');
+            questsContainer.innerHTML = '';
+            state.quests.forEach(q => {
+                const questCard = document.createElement('div');
+                questCard.className = `p-3.5 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-between gap-3 shadow-sm transition hover:shadow`;
+                
+                // 建構需求列表
+                let reqListHTML = '';
+                let canComplete = true;
+                
+                Object.entries(q.req).forEach(([itemId, reqCount]) => {
+                    const haveCount = state.inventory[itemId] || 0;
+                    const isMet = haveCount >= reqCount;
+                    if (!isMet) canComplete = false;
+                    
+                    const emoji = getEmojiById(itemId);
+                    reqListHTML += `
+                        <div class="flex items-center justify-between text-xs font-semibold">
+                            <span class="flex items-center gap-1 text-slate-600">${emoji} ${getNameById(itemId)}</span>
+                            <span class="${isMet ? 'text-emerald-600 font-extrabold' : 'text-slate-400 font-medium'}">${haveCount}/${reqCount}</span>
+                        </div>
+                    `;
+                });
+
+                // 按鈕樣式
+                const btnHTML = canComplete 
+                    ? `<button onclick="completeQuest(${q.id})" class="w-full py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-extrabold rounded-xl shadow-md shadow-rose-200 transition active:scale-95 flex items-center justify-center gap-1 animate-pulse">
+                         交付合約 <i class="fa-solid fa-paper-plane"></i>
+                       </button>`
+                    : `<div class="w-full py-2 text-center bg-slate-100 text-slate-400 text-xs font-bold rounded-xl border border-dashed border-slate-200">
+                         物資籌備中...
+                       </div>`;
+
+                questCard.innerHTML = `
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-700 flex items-center gap-1">📌 ${q.text}</h4>
+                        <div class="mt-2.5 space-y-1 bg-white p-2 rounded-xl border border-slate-100">
+                            ${reqListHTML}
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center text-[10px] font-bold text-slate-500 px-1">
+                            <span class="text-amber-600">🪙 +${q.reward}</span>
+                            <span class="text-purple-600">⭐ +${q.xp} XP</span>
+                        </div>
+                        ${btnHTML}
+                    </div>
+                `;
+                questsContainer.appendChild(questCard);
+            });
+
+            // 8. 科技商店高亮狀態
+            updateUpgradeButton('expand', UPGRADE_CONFIG.expand.cost, state.activeUpgrades.expand);
+            updateUpgradeButton('sprinkler', UPGRADE_CONFIG.sprinkler.cost, state.activeUpgrades.sprinkler);
+            updateUpgradeButton('scarecrow', UPGRADE_CONFIG.scarecrow.cost, state.activeUpgrades.scarecrow);
+            
+            // 頂部科技徽章
+            toggleBadgeActive('scarecrow', state.activeUpgrades.scarecrow);
+            toggleBadgeActive('sprinkler', state.activeUpgrades.sprinkler);
+        }
+
+        // 輔助函式：根據 ID 獲取表情與名稱
+        function getEmojiById(id) {
+            if (CROPS_CONFIG[id]) return CROPS_CONFIG[id].emoji;
+            if (id === 'egg') return '🥚';
+            if (id === 'milk') return '🥛';
+            return '📦';
+        }
+        function getNameById(id) {
+            if (CROPS_CONFIG[id]) return CROPS_CONFIG[id].name;
+            if (id === 'egg') return '雞蛋';
+            if (id === 'milk') return '鮮乳';
+            return '物品';
+        }
+
+        function updateUpgradeButton(id, cost, hasBought) {
+            const btn = document.getElementById(`upgrade-btn-${id}`);
+            const costEl = document.getElementById(`cost-upgrade-${id}`);
+            if (hasBought) {
+                btn.className = "w-full p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-left opacity-75 cursor-not-allowed";
+                costEl.className = "bg-emerald-600 text-white font-extrabold text-xs px-2.5 py-1 rounded-full";
+                costEl.innerText = "已啟用";
+            } else {
+                btn.className = "w-full p-3 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-2xl flex items-center justify-between text-left transition active:scale-98";
+                costEl.className = "bg-emerald-100 text-emerald-800 font-extrabold text-xs px-2.5 py-1 rounded-full";
+                costEl.innerText = `$${cost}`;
+            }
+        }
+
+        function toggleBadgeActive(id, isActive) {
+            const el = document.querySelector(`span[id-active="${id}"]`);
+            if (el) {
+                if (isActive) {
+                    el.classList.remove('opacity-30', 'bg-amber-950/50');
+                    el.classList.add('opacity-100', 'bg-emerald-950/80');
+                } else {
+                    el.classList.add('opacity-30', 'bg-amber-950/50');
+                    el.classList.remove('opacity-100', 'bg-emerald-950/80');
+                }
+            }
+        }
+
+        function selectSeed(id) {
+            state.selectedSeed = id;
+            // 當選取種子，工具預設切換回手動(用以點擊土地種植)
+            state.selectedTool = 'hand';
+            AudioEngine.play('water'); // 音效回饋
+            renderAll();
+        }
+
+        function selectTool(toolId) {
+            state.selectedTool = toolId;
+            AudioEngine.play('water');
+            renderAll();
+        }
+
+        // 土壤與作物互動引擎
+        function handlePlotInteraction(id) {
+            // 找出點擊的土地
+            const plot = state.plots.find(p => p.id === id);
+            if (!plot) return;
+
+            // 1. 如果有烏鴉，只能進行驅趕 (不限工具)
+            if (plot.crowPresent) {
+                plot.crowPresent = false;
+                AudioEngine.play('animal');
+                createToast("🐦‍⬛ 成功趕走了討厭的烏鴉！", "success");
+                renderAll();
+                saveGame();
+                return;
+            }
+
+            // 2. 空地播種
+            if (plot.crop === null) {
+                // 限手部或沒有特別指定工具
+                if (state.selectedTool === 'hand') {
+                    const seedConfig = CROPS_CONFIG[state.selectedSeed];
+                    if (state.coins >= seedConfig.cost) {
+                        state.coins -= seedConfig.cost;
+                        plot.crop = seedConfig.id;
+                        plot.growth = 0;
+                        plot.fertilized = false;
+                        // 如果有自動灑水，直接附帶水分
+                        plot.water = state.activeUpgrades.sprinkler ? 100 : 0;
+                        
+                        AudioEngine.play('plant');
+                        createToast(`🌱 已種下 ${seedConfig.name}！`, "success");
+                    } else {
+                        AudioEngine.play('animal');
+                        createToast("🪙 金幣餘額不足以購買種子！", "error");
+                    }
+                } else {
+                    createToast("💡 空地需要先切換到「種植」或不要選擇特殊工具喔！", "info");
+                }
+            }
+            // 3. 施水或施肥或除草
+            else {
+                if (state.selectedTool === 'water') {
+                    // 澆水
+                    if (plot.water < 100) {
+                        plot.water = 100;
+                        AudioEngine.play('water');
+                        createToast("💦 灌溉土壤完成，作物生長加快！", "success");
+                    } else {
+                        createToast("💧 土地已經非常濕潤囉！", "info");
+                    }
+                } 
+                else if (state.selectedTool === 'fertilizer') {
+                    // 超級施肥（需花費 $15 金幣，瞬間催熟 35%）
+                    if (plot.growth >= 100) {
+                        createToast("🌾 作物已經成熟，直接收割即可！", "info");
+                        return;
+                    }
+                    if (plot.fertilized) {
+                        createToast("🧪 此作物已經施過肥，不宜過度施肥！", "warn");
+                        return;
+                    }
+                    if (state.coins >= 15) {
+                        state.coins -= 15;
+                        plot.fertilized = true;
+                        plot.growth = Math.min(plot.growth + 35, 100);
+                        AudioEngine.play('upgrade');
+                        createToast("🧪 注入高效生長養分，進度暴增 35%！", "success");
+                    } else {
+                        AudioEngine.play('animal');
+                        createToast("🪙 金幣餘額不足以購買超級肥料 ($15)！", "error");
+                    }
+                }
+                else if (state.selectedTool === 'hand') {
+                    // 收割
+                    if (plot.growth >= 100) {
+                        const cropConfig = CROPS_CONFIG[plot.crop];
+                        
+                        // 收入倉庫
+                        state.inventory[plot.crop]++;
+                        // 賺取經驗值
+                        gainXp(cropConfig.xp);
+                        
+                        // 清空此土地
+                        plot.crop = null;
+                        plot.growth = 0;
+                        plot.fertilized = false;
+                        plot.water = state.activeUpgrades.sprinkler ? 100 : 0;
+
+                        AudioEngine.play('harvest');
+                        createToast(`收割了美味的 ${cropConfig.name} 🌾`, "success");
+                    } else {
+                        // 溫馨提醒
+                        const cropConfig = CROPS_CONFIG[plot.crop];
+                        createToast(`🌱 ${cropConfig.name} 還在生長中 (${Math.floor(plot.growth)}%)，請耐心等候！`, "info");
+                    }
+                }
+            }
+
+            renderAll();
+            saveGame();
+        }
+
+        function buyAnimal(type) {
+            const config = ANIMAL_CONFIG[type];
+            if (state.coins >= config.cost) {
+                state.coins -= config.cost;
+                state.animals[type]++;
+                AudioEngine.play('upgrade');
+                createToast(`🎁 購買了一隻可愛的 ${config.name}！`, "success");
+                renderAll();
+                saveGame();
+            } else {
+                AudioEngine.play('animal');
+                createToast(`🪙 金幣不足，購買 ${config.name} 需要 $${config.cost}！`, "error");
+            }
+        }
+
+        function feedAnimal(type) {
+            if (state.animals[type] <= 0) {
+                createToast(`🐔 你需要先買一隻 ${ANIMAL_CONFIG[type].name} 才能進行餵食！`, "warn");
+                return;
+            }
+            const config = ANIMAL_CONFIG[type];
+            const foodType = config.food;
+            
+            // 檢查倉庫是否有飼料
+            if (state.inventory[foodType] >= 1) {
+                state.inventory[foodType]--;
+                
+                // 生產副產品
+                const productType = config.product;
+                state.inventory[productType]++;
+                gainXp(config.xp);
+
+                AudioEngine.play('animal');
+                createToast(`🐄 餵食 ${config.name} 成功！獲得了 ${config.pName} ${config.pEmoji}！`, "success");
+                renderAll();
+                saveGame();
+            } else {
+                createToast(`🌾 倉庫缺少 ${CROPS_CONFIG[foodType].emoji} ${CROPS_CONFIG[foodType].name} 當作飼料！`, "error");
+            }
+        }
+
+        function sellSingleItem(itemId, event) {
+            if (event) event.stopPropagation(); // 防止點擊事件擴散
+            
+            const count = state.inventory[itemId] || 0;
+            if (count <= 0) return;
+
+            let price = 0;
+            let name = "";
+            
+            // 計算單價
+            if (CROPS_CONFIG[itemId]) {
+                price = CROPS_CONFIG[itemId].sellPrice;
+                name = CROPS_CONFIG[itemId].name;
+            } else if (itemId === 'egg') {
+                price = ANIMAL_CONFIG.chicken.pPrice;
+                name = ANIMAL_CONFIG.chicken.pName;
+            } else if (itemId === 'milk') {
+                price = ANIMAL_CONFIG.cow.pPrice;
+                name = ANIMAL_CONFIG.cow.pName;
+            }
+
+            state.inventory[itemId]--;
+            state.coins += price;
+
+            AudioEngine.play('sell');
+            createToast(`🪙 賣出 1 個 ${name}，賺得 $${price}！`, "success");
+            renderAll();
+            saveGame();
+        }
+
+        function sellAllInventory() {
+            let totalEarned = 0;
+            Object.keys(state.inventory).forEach(itemId => {
+                const count = state.inventory[itemId] || 0;
+                if (count > 0) {
+                    let price = 0;
+                    if (CROPS_CONFIG[itemId]) price = CROPS_CONFIG[itemId].sellPrice;
+                    else if (itemId === 'egg') price = ANIMAL_CONFIG.chicken.pPrice;
+                    else if (itemId === 'milk') price = ANIMAL_CONFIG.cow.pPrice;
+
+                    totalEarned += price * count;
+                    state.inventory[itemId] = 0;
+                }
+            });
+
+            if (totalEarned > 0) {
+                state.coins += totalEarned;
+                AudioEngine.play('sell');
+                createToast(`💰 大豐收！清空倉庫，總共賺了 $${totalEarned}！`, "success");
+                renderAll();
+                saveGame();
+            } else {
+                createToast("📦 倉庫本來就是空的喔！快去種田吧！", "info");
+            }
+        }
+
+        function buyUpgrade(type) {
+            if (state.activeUpgrades[type]) {
+                createToast("💡 此科技已經完成升級了！", "info");
+                return;
+            }
+            
+            const cost = UPGRADE_CONFIG[type].cost;
+            if (state.coins >= cost) {
+                state.coins -= cost;
+                state.activeUpgrades[type] = true;
+
+                // 執行特殊升級效果
+                if (type === 'expand') {
+                    // 新增 3 塊地
+                    const newPlots = createDefaultPlots(3);
+                    // 重新指派 ID 順序避免衝突
+                    newPlots.forEach((p, idx) => p.id = state.plots.length + idx);
+                    state.plots = [...state.plots, ...newPlots];
+                    createToast("🪵 成功開墾全新荒地！農地擴張為 12 格！", "success");
+                } else if (type === 'sprinkler') {
+                    // 全面自動灑水
+                    state.plots.forEach(p => p.water = 100);
+                    createToast("🚿 自動微霧灑水系統上線！土壤將永久保濕！", "success");
+                } else if (type === 'scarecrow') {
+                    createToast("👤 稻草人搭建完成！再也沒有烏鴉敢靠近農場囉！", "success");
+                }
+
+                AudioEngine.play('upgrade');
+                renderAll();
+                saveGame();
+            } else {
+                AudioEngine.play('animal');
+                createToast(`🪙 金幣不足，此升級需要 $${cost}！`, "error");
+            }
+        }
+
+        function completeQuest(questId) {
+            const questIdx = state.quests.findIndex(q => q.id === questId);
+            if (questIdx === -1) return;
+
+            const q = state.quests[questIdx];
+            
+            // 雙重驗證
+            let canDo = true;
+            Object.entries(q.req).forEach(([itemId, reqCount]) => {
+                if ((state.inventory[itemId] || 0) < reqCount) canDo = false;
+            });
+
+            if (canDo) {
+                // 扣除庫存
+                Object.entries(q.req).forEach(([itemId, reqCount]) => {
+                    state.inventory[itemId] -= reqCount;
+                });
+
+                // 給予獎勵
+                state.coins += q.reward;
+                gainXp(q.xp);
+
+                // 移出任務並在一段時間後生成新任務
+                state.quests.splice(questIdx, 1);
+                
+                AudioEngine.play('upgrade');
+                createToast(`🎉 成功交付村民合約《${q.text}》！`, "success");
+
+                // 補足三個任務
+                setTimeout(() => {
+                    if (state.quests.length < 3) {
+                        const newPool = generateQuests();
+                        // 找一個不存在於當前任務的新合約加入
+                        const activeIds = state.quests.map(activeQ => activeQ.id);
+                        const addQuest = newPool.find(np => !activeIds.includes(np.id));
+                        if (addQuest) {
+                            state.quests.push(addQuest);
+                            renderAll();
+                            saveGame();
+                        }
+                    }
+                }, 2000);
+
+                renderAll();
+                saveGame();
+            }
+        }
+
+        function gainXp(amount) {
+            state.xp += amount;
+            let nextLevelXp = state.level * 120;
+            
+            if (state.xp >= nextLevelXp) {
+                state.xp -= nextLevelXp;
+                state.level++;
+                AudioEngine.play('levelUp');
+                createToast(`🌟 ⭐ 恭喜升級！你已晉升為等級 ${state.level} 的農場大師！`, "success");
+            }
+        }
+
+        function toggleMute() {
+            AudioEngine.isMuted = !AudioEngine.isMuted;
+            const icon = document.getElementById('sound-icon');
+            if (AudioEngine.isMuted) {
+                icon.className = "fa-solid fa-volume-xmark text-rose-500 animate-pulse";
+                createToast("🔇 遊戲音效已靜音", "info");
+            } else {
+                icon.className = "fa-solid fa-volume-high";
+                AudioEngine.play('water');
+                createToast("🔊 遊戲音效已開啟", "info");
+            }
+        }
+
+        function confirmReset() {
+            const doubleCheck = confirm("👩‍🌾 真的要重設你辛苦建立的農場與所有累積進度嗎？");
+            if (doubleCheck) {
+                resetToDefault();
+                AudioEngine.play('animal');
+                createToast("🧹 農場已徹底整平重設，重新開始新生活！", "warn");
+                renderAll();
+            }
+        }
+
+        function gameTick() {
+            // 1. 更新作物生長
+            state.plots.forEach(plot => {
+                if (plot.crop !== null && plot.growth < 100) {
+                    const cropConfig = CROPS_CONFIG[plot.crop];
+                    
+                    // 生長速率因子：
+                    // 土壤濕度大於0或雨天時 100% 速度。乾燥土地只用 30% 速度生長
+                    let growthSpeed = 100 / cropConfig.time; // 每秒生長%
+                    if (plot.water <= 0 && state.weather !== 'rainy') {
+                        growthSpeed *= 0.3; // 乾涸懲罰
+                    }
+
+                    // 晴天加速 20%
+                    if (state.weather === 'sunny') {
+                        growthSpeed *= 1.2;
+                    }
+
+                    plot.growth = Math.min(plot.growth + growthSpeed, 100);
+
+                    // 消耗土地水分
+                    if (!state.activeUpgrades.sprinkler && state.weather !== 'rainy') {
+                        plot.water = Math.max(plot.water - 3.5, 0); // 每秒乾涸一點
+                    }
+                }
+
+                // 如果有自動灑水科技，強制維持濕潤
+                if (state.activeUpgrades.sprinkler) {
+                    plot.water = 100;
+                }
+
+                // 隨機烏鴉攻擊事件 (機率極低，但沒有稻草人時會發生)
+                if (!state.activeUpgrades.scarecrow && plot.crop !== null && plot.growth < 100 && !plot.crowPresent) {
+                    if (Math.random() < 0.015) { // 1.5% 機率
+                        plot.crowPresent = true;
+                        createToast("🐦‍⬛ 警報！有一隻烏鴉在偷吃你的作物！點擊牠趕走！", "warn");
+                    }
+                }
+            });
+
+            // 2. 天氣與時間系統
+            state.weatherTicks++;
+            if (state.weatherTicks >= 35) { // 每 35 秒切換一次天氣
+                state.weatherTicks = 0;
+                state.day++;
+                
+                // 決定隨機天氣
+                const weathers = ['sunny', 'sunny', 'rainy', 'drought']; // 晴天機率高
+                state.weather = weathers[Math.floor(Math.random() * weathers.length)];
+                
+                const weatherBadge = document.getElementById('weather-badge');
+                const weatherText = document.getElementById('weather-text');
+                const weatherIcon = document.getElementById('weather-icon');
+                
+                if (state.weather === 'sunny') {
+                    weatherText.innerText = "晴空萬里";
+                    weatherIcon.innerText = "☀️";
+                    weatherText.className = "text-amber-600";
+                    createToast("☀️ 太陽露臉了！溫暖的陽光使作物生長速率提高 20%！", "info");
+                } else if (state.weather === 'rainy') {
+                    weatherText.innerText = "微風細雨";
+                    weatherIcon.innerText = "🌧️";
+                    weatherText.className = "text-sky-600";
+                    // 下雨立刻將全農地水分補滿
+                    state.plots.forEach(p => p.water = 100);
+                    createToast("🌧️ 天空下起了綿綿細雨，自動灌溉全農場所有作物！", "info");
+                } else {
+                    weatherText.innerText = "高溫乾旱";
+                    weatherIcon.innerText = "🥵";
+                    weatherText.className = "text-rose-600";
+                    createToast("🥵 遭遇極端乾旱高溫！水分消耗翻倍，請注意多灌溉！", "warn");
+                }
+            }
+
+            // 雨天時全土地持續保濕
+            if (state.weather === 'rainy') {
+                state.plots.forEach(p => p.water = 100);
+            }
+
+            // 3. 定時自動保存
+            if (state.weatherTicks % 10 === 0) {
+                saveGame();
+            }
+
+            renderAll();
+        }
+
+        window.onload = function() {
+            // 讀取進度並繪製畫面
+            loadGame();
+            
+            // 啟動1秒主循環心跳
+            setInterval(gameTick, 1000);
+            
+            // 首次渲染
+            renderAll();
+            
+            // 引導提示
+            setTimeout(() => {
+                createToast("👩‍🌾 歡迎回到晴空微風農場！開啟你的快樂農耕生活吧！", "success");
+            }, 800);
+        };
+    </script>
+</body>
+</html>
